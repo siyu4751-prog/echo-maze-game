@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Echo Maze 回声迷宫</title>
+  <style>
+    body {
+      margin: 0;
+      background: #020617;
+      color: white;
+      text-align: center;
+      font-family: Arial, sans-serif;
+    }
+
+    h1 {
+      margin-top: 20px;
+    }
+
+    canvas {
+      background: #020617;
+      border: 3px solid white;
+      margin-top: 10px;
+    }
+
+    .info {
+      margin-top: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 8px 18px;
+      border: none;
+      border-radius: 6px;
+      background: #38bdf8;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Echo Maze 回声迷宫</h1>
+  <p>WASD / 方向键移动，空格键释放声波。找到钥匙后进入出口！</p>
+
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+
+  <div class="info">
+    步数：<span id="steps">0</span>　
+    状态：<span id="status">寻找钥匙</span>
+  </div>
+
+  <button onclick="restartGame()">重新开始</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const stepsText = document.getElementById("steps");
+    const statusText = document.getElementById("status");
+
+    const tileSize = 20;
+
+    const map = [
+      "##############################",
+      "#P.....#...............#.....#",
+      "#.###.#.#.###########.#.#.##.#",
+      "#...#.#.#.....#.......#.#....#",
+      "###.#.#.#####.#.#######.####.#",
+      "#...#.#.....#.#.....#.......#",
+      "#.###.#####.#.#####.#.#####.#",
+      "#.....#.....#.....#.#.....#.#",
+      "#.#####.#########.#.#####.#.#",
+      "#.......#.........#.....#.#.#",
+      "#######.#.#############.#.#.#",
+      "#.......#.......#.......#.#.#",
+      "#.#############.#.#######.#.#",
+      "#.....#.........#.........#.#",
+      "#.###.#.###################.#",
+      "#...#.#.............#.......#",
+      "###.#.###########.#.#.#######",
+      "#...#.............#.#.....K.#",
+      "#.#################.#####...E",
+      "##############################"
+    ];
+
+    let player;
+    let key;
+    let exit;
+    let hasKey;
+    let steps;
+    let pulseRadius;
+    let pulseActive;
+    let gameWin;
+
+    function initGame() {
+      hasKey = false;
+      steps = 0;
+      pulseRadius = 0;
+      pulseActive = false;
+      gameWin = false;
+
+      for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+          if (map[y][x] === "P") {
+            player = { x, y };
+          }
+          if (map[y][x] === "K") {
+            key = { x, y };
+          }
+          if (map[y][x] === "E") {
+            exit = { x, y };
+          }
+        }
+      }
+
+      stepsText.textContent = steps;
+      statusText.textContent = "寻找钥匙";
+    }
+
+    function isWall(x, y) {
+      if (y < 0 || y >= map.length || x < 0 || x >= map[y].length) {
+        return true;
+      }
+      return map[y][x] === "#";
+    }
+
+    function movePlayer(dx, dy) {
+      if (gameWin) return;
+
+      const newX = player.x + dx;
+      const newY = player.y + dy;
+
+      if (!isWall(newX, newY)) {
+        player.x = newX;
+        player.y = newY;
+        steps++;
+        stepsText.textContent = steps;
+      }
+
+      checkGameState();
+    }
+
+    function checkGameState() {
+      if (player.x === key.x && player.y === key.y && !hasKey) {
+        hasKey = true;
+        statusText.textContent = "已获得钥匙，寻找出口";
+      }
+
+      if (player.x === exit.x && player.y === exit.y) {
+        if (hasKey) {
+          gameWin = true;
+          statusText.textContent = "通关成功！";
+        } else {
+          statusText.textContent = "需要先找到钥匙";
+        }
+      }
+    }
+
+    document.addEventListener("keydown", function(e) {
+      const keyName = e.key.toLowerCase();
+
+      if (keyName === "arrowup" || keyName === "w") {
+        movePlayer(0, -1);
+      } else if (keyName === "arrowdown" || keyName === "s") {
+        movePlayer(0, 1);
+      } else if (keyName === "arrowleft" || keyName === "a") {
+        movePlayer(-1, 0);
+      } else if (keyName === "arrowright" || keyName === "d") {
+        movePlayer(1, 0);
+      } else if (e.code === "Space") {
+        pulseActive = true;
+        pulseRadius = 0;
+      }
+    });
+
+    function drawTile(x, y, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+    }
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const playerCenterX = player.x * tileSize + tileSize / 2;
+      const playerCenterY = player.y * tileSize + tileSize / 2;
+
+      for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+          const centerX = x * tileSize + tileSize / 2;
+          const centerY = y * tileSize + tileSize / 2;
+
+          const dx = centerX - playerCenterX;
+          const dy = centerY - playerCenterY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          const nearPlayer = distance < 45;
+          const inPulse = pulseActive && distance < pulseRadius;
+
+          if (map[y][x] === "#" && (nearPlayer || inPulse)) {
+            drawTile(x, y, "#334155");
+          } else {
+            drawTile(x, y, "#020617");
+          }
+        }
+      }
+
+      if (!hasKey) {
+        drawTile(key.x, key.y, "#facc15");
+      }
+
+      drawTile(exit.x, exit.y, hasKey ? "#22c55e" : "#64748b");
+      drawTile(player.x, player.y, "#38bdf8");
+
+      if (pulseActive) {
+        ctx.beginPath();
+        ctx.arc(playerCenterX, playerCenterY, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.8)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        pulseRadius += 5;
+
+        if (pulseRadius > 220) {
+          pulseActive = false;
+        }
+      }
+
+      if (gameWin) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "white";
+        ctx.font = "34px Arial";
+        ctx.fillText("通关成功！", 220, 180);
+
+        ctx.font = "20px Arial";
+        ctx.fillText("总步数：" + steps, 250, 220);
+      }
+
+      requestAnimationFrame(drawGame);
+    }
+
+    function restartGame() {
+      initGame();
+    }
+
+    initGame();
+    drawGame();
+  </script>
+
+</body>
+</html>
