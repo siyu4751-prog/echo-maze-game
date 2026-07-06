@@ -92,7 +92,27 @@
     let pulseRadius;
     let pulseActive;
     let gameWin;
+    let audioCtx;
+    function playSound(frequency, duration, type = "sine") {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
 
+  const oscillator = audioCtx.createOscillator();
+  const gainNode = audioCtx.createGain();
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  oscillator.frequency.value = frequency;
+  oscillator.type = type;
+
+  gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+
+  oscillator.start(audioCtx.currentTime);
+  oscillator.stop(audioCtx.currentTime + duration);
+}
     function initGame() {
       hasKey = false;
       steps = 0;
@@ -143,18 +163,20 @@
 
     function checkGameState() {
       if (player.x === key.x && player.y === key.y && !hasKey) {
-        hasKey = true;
-        statusText.textContent = "已获得钥匙，寻找出口";
-      }
-
-      if (player.x === exit.x && player.y === exit.y) {
-        if (hasKey) {
-          gameWin = true;
-          statusText.textContent = "通关成功！";
-        } else {
-          statusText.textContent = "需要先找到钥匙";
-        }
-      }
+  hasKey = true;
+  statusText.textContent = "已获得钥匙，寻找出口";
+  playSound(800, 0.2, "triangle");
+}
+     if (player.x === exit.x && player.y === exit.y) {
+  if (hasKey && !gameWin) {
+    gameWin = true;
+    statusText.textContent = "通关成功！";
+    playSound(1000, 0.3, "square");
+  } else if (!hasKey) {
+    statusText.textContent = "需要先找到钥匙";
+    playSound(220, 0.2, "sawtooth");
+  }
+}
     }
 
     document.addEventListener("keydown", function(e) {
@@ -169,9 +191,10 @@
       } else if (keyName === "arrowright" || keyName === "d") {
         movePlayer(1, 0);
       } else if (e.code === "Space") {
-        pulseActive = true;
-        pulseRadius = 0;
-      }
+  pulseActive = true;
+  pulseRadius = 0;
+  playSound(520, 0.15, "sine");
+}
     });
 
     function drawTile(x, y, color) {
