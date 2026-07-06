@@ -18,3 +18,7 @@ HTML  CSS JavaScript Canvas
 # 运行方式
 
 下载项目后，双击 index.html 即可在浏览器中运行。
+# 在线体验
+
+点击下面链接即可在线游玩：
+https://siyu4751-prog.github.io/echo-maze-game/
